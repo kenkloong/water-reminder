@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日喝水提醒</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(160deg, #e3f2fd 0%, #bbdefb 55%, #90caf9 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px 48px;
+    color: #0d47a1;
+  }
+  .card {
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 20px;
+    box-shadow: 0 12px 32px rgba(13, 71, 161, 0.18);
+    max-width: 430px;
+    width: 100%;
+    padding: 28px 24px 24px;
+  }
+  h1 { font-size: 24px; text-align: center; margin-bottom: 4px; }
+  .date { text-align: center; color: #1976d2; font-size: 14px; margin-bottom: 20px; }
+  .big-num { text-align: center; font-size: 40px; font-weight: 700; color: #1565c0; }
+  .big-num small { font-size: 16px; font-weight: 400; color: #1976d2; }
+  .sub { text-align: center; font-size: 14px; color: #1976d2; margin: 4px 0 14px; }
+  .bar-wrap {
+    background: #e3f2fd; border-radius: 999px; height: 20px; overflow: hidden;
+    border: 1px solid #bbdefb; margin-bottom: 8px;
+  }
+  .bar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #42a5f5, #1e88e5);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .pct { text-align: right; font-size: 13px; color: #1565c0; margin-bottom: 16px; }
+  .btn-main {
+    display: block; width: 100%; padding: 14px 0;
+    font-size: 18px; font-weight: 600; color: #fff;
+    background: linear-gradient(90deg, #42a5f5, #1976d2);
+    border: none; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 6px 14px rgba(25, 118, 210, 0.35);
+  }
+  .btn-main:active { transform: scale(0.98); }
+  .row { display: flex; gap: 10px; margin-top: 10px; }
+  .btn-sub {
+    flex: 1; padding: 10px 0; font-size: 14px; color: #1565c0;
+    background: #e3f2fd; border: 1px solid #90caf9; border-radius: 10px; cursor: pointer;
+  }
+  .btn-sub:active { transform: scale(0.97); }
+  .section { margin-top: 22px; border-top: 1px dashed #bbdefb; padding-top: 16px; }
+  .section h2 { font-size: 15px; margin-bottom: 10px; color: #0d47a1; }
+  .field { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
+  .field input[type="number"], .field select {
+    width: 130px; padding: 7px 8px; font-size: 14px;
+    border: 1px solid #90caf9; border-radius: 8px; color: #0d47a1; background: #fff;
+  }
+  .switch-row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+  .btn-remind {
+    padding: 9px 18px; font-size: 14px; font-weight: 600;
+    border-radius: 999px; border: none; cursor: pointer;
+    background: #bbdefb; color: #0d47a1;
+  }
+  .btn-remind.on { background: #1976d2; color: #fff; }
+  .next-tip { font-size: 12px; color: #1976d2; margin-top: 8px; min-height: 16px; }
+  .banner {
+    display: none; margin-top: 16px; padding: 12px 14px;
+    background: #fff3e0; border: 1px solid #ffb74d; border-radius: 10px;
+    color: #e65100; font-size: 14px; text-align: center;
+  }
+  .banner.show { display: block; }
+  .banner button {
+    margin-left: 8px; padding: 3px 10px; border: none; border-radius: 6px;
+    background: #fb8c00; color: #fff; cursor: pointer; font-size: 13px;
+  }
+  .foot { text-align: center; font-size: 12px; color: #64b5f6; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>💧 每日喝水提醒</h1>
+  <div class="date" id="dateText"></div>
+
+  <div class="big-num"><span id="drankMl">0</span> <small>/ <span id="goalText">2000</span> ml</small></div>
+  <div class="sub">已喝 <span id="cups">0</span> 杯（每杯 250 ml）</div>
+
+  <div class="bar-wrap"><div class="bar" id="bar"></div></div>
+  <div class="pct" id="pct">0%</div>
+
+  <button class="btn-main" id="drinkBtn">🥤 喝一杯（+250 ml）</button>
+  <div class="row">
+    <button class="btn-sub" id="undoBtn">↩️ 撤销一杯</button>
+    <button class="btn-sub" id="resetBtn">🗑️ 清空今日</button>
+  </div>
+
+  <div class="banner" id="banner">
+    ⏰ 到时间啦，起来喝杯水吧！<button id="bannerOk">好的</button>
+  </div>
+
+  <div class="section">
+    <h2>⚙️ 设置</h2>
+    <div class="field">
+      <label for="goalInput">今日目标（ml）</label>
+      <input type="number" id="goalInput" min="250" step="50" value="2000">
+    </div>
+    <div class="field">
+      <label for="intervalSel">提醒间隔</label>
+      <select id="intervalSel">
+        <option value="30">30 分钟</option>
+        <option value="60" selected>60 分钟</option>
+        <option value="90">90 分钟</option>
+        <option value="120">120 分钟</option>
+      </select>
+    </div>
+    <div class="switch-row">
+      <span>定时提醒</span>
+      <button class="btn-remind" id="remindBtn">开启提醒</button>
+    </div>
+    <div class="next-tip" id="nextTip"></div>
+  </div>
+
+  <div class="foot">记录保存在本机浏览器，每天自动重置</div>
+</div>
+
+<script>
+(function () {
+  var CUP = 250;
+  var today = new Date();
+  var dateKey = today.getFullYear() + "-" +
+    String(today.getMonth() + 1).padStart(2, "0") + "-" +
+    String(today.getDate()).padStart(2, "0");
+  var STORE_KEY = "water-reminder-" + dateKey;
+  var SET_KEY = "water-reminder-settings";
+
+  var state = { drank: 0 };
+  var settings = { goal: 2000, interval: 60, remind: false };
+
+  try {
+    var saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
+    if (saved && typeof saved.drank === "number") state.drank = saved.drank;
+    var s2 = JSON.parse(localStorage.getItem(SET_KEY) || "null");
+    if (s2) {
+      if (typeof s2.goal === "number" && s2.goal > 0) settings.goal = s2.goal;
+      if ([30, 60, 90, 120].indexOf(s2.interval) >= 0) settings.interval = s2.interval;
+      settings.remind = !!s2.remind;
+    }
+  } catch (e) {}
+
+  var timerId = null;
+  var nextAt = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var dateText = $("dateText"), drankMl = $("drankMl"), goalText = $("goalText"),
+      cups = $("cups"), bar = $("bar"), pct = $("pct"),
+      goalInput = $("goalInput"), intervalSel = $("intervalSel"),
+      remindBtn = $("remindBtn"), nextTip = $("nextTip"), banner = $("banner");
+
+  dateText.textContent = today.getFullYear() + " 年 " + (today.getMonth() + 1) +
+    " 月 " + today.getDate() + " 日";
+  goalInput.value = settings.goal;
+  intervalSel.value = String(settings.interval);
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      localStorage.setItem(SET_KEY, JSON.stringify(settings));
+    } catch (e) {}
+  }
+
+  function render() {
+    drankMl.textContent = state.drank;
+    goalText.textContent = settings.goal;
+    cups.textContent = Math.round(state.drank / CUP);
+    var p = Math.min(100, Math.round(state.drank / settings.goal * 100));
+    bar.style.width = p + "%";
+    pct.textContent = p + "%" + (state.drank >= settings.goal ? "　🎉 今日目标达成！" : "");
+    remindBtn.textContent = settings.remind ? "提醒已开启" : "开启提醒";
+    remindBtn.className = "btn-remind" + (settings.remind ? " on" : "");
+    if (settings.remind && nextAt) {
+      var mins = Math.max(1, Math.round((nextAt - Date.now()) / 60000));
+      nextTip.textContent = "下次提醒约在 " + mins + " 分钟后";
+    } else {
+      nextTip.textContent = "";
+    }
+  }
+
+  function notify() {
+    var done = false;
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification("💧 喝水提醒", { body: "到时间啦，喝一杯水吧！今日已喝 " + state.drank + " ml。" });
+        done = true;
+      } catch (e) {}
+    }
+    if (!done) {
+      banner.classList.add("show");
+    }
+    document.title = "⏰ 该喝水啦！- 每日喝水提醒";
+    setTimeout(function () { document.title = "每日喝水提醒"; }, 8000);
+  }
+
+  function schedule() {
+    if (timerId) { clearInterval(timerId); timerId = null; }
+    nextAt = null;
+    if (settings.remind) {
+      nextAt = Date.now() + settings.interval * 60000;
+      timerId = setInterval(function () {
+        notify();
+        nextAt = Date.now() + settings.interval * 60000;
+        render();
+      }, settings.interval * 60000);
+    }
+    render();
+  }
+
+  $("drinkBtn").addEventListener("click", function () {
+    state.drank += CUP;
+    save(); render();
+  });
+  $("undoBtn").addEventListener("click", function () {
+    state.drank = Math.max(0, state.drank - CUP);
+    save(); render();
+  });
+  $("resetBtn").addEventListener("click", function () {
+    state.drank = 0;
+    save(); render();
+  });
+  $("bannerOk").addEventListener("click", function () {
+    banner.classList.remove("show");
+  });
+
+  goalInput.addEventListener("change", function () {
+    var v = parseInt(goalInput.value, 10);
+    if (isNaN(v) || v <= 0) { goalInput.value = settings.goal; return; }
+    settings.goal = v;
+    save(); render();
+  });
+  intervalSel.addEventListener("change", function () {
+    settings.interval = parseInt(intervalSel.value, 10);
+    save(); schedule();
+  });
+  remindBtn.addEventListener("click", function () {
+    if (!settings.remind) {
+      settings.remind = true;
+      save(); schedule();
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().then(function () {});
+      }
+      if (!("Notification" in window) || Notification.permission === "denied") {
+        nextTip.textContent = "浏览器通知不可用，将改用页面内提示提醒你。";
+      }
+    } else {
+      settings.remind = false;
+      save(); schedule();
+    }
+  });
+
+  // 跨午夜后自动切换到新一天
+  setInterval(function () {
+    var now = new Date();
+    var k = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") +
+      "-" + String(now.getDate()).padStart(2, "0");
+    if (k !== dateKey) location.reload();
+  }, 60000);
+
+  save();
+  schedule();
+})();
+</script>
+</body>
+</html>
